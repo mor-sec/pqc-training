@@ -1,0 +1,934 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Quantum Threat Lab</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&display=swap">
+<style>
+/* Layout: a lab bench. One 3D stage with a notebook column beside it; reference tables follow at reading width. */
+:root{
+  --bg:#f1f3f6; --surface:#ffffff; --stage:#e2e7ee; --ink:#15202d; --muted:#556373; --line:#cdd5de; --dim:#98a4b2;
+  --gold:#96670f; --risk:#bd3f26; --safe:#0a756b;
+  --f-display:"IBM Plex Sans Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d1520; --surface:#151f2c; --stage:#09101a; --ink:#e6ebf1; --muted:#94a3b4; --line:#273445; --dim:#465568;
+    --gold:#e2b455; --risk:#f27f65; --safe:#54d2bf; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d1520; --surface:#151f2c; --stage:#09101a; --ink:#e6ebf1; --muted:#94a3b4; --line:#273445; --dim:#465568;
+  --gold:#e2b455; --risk:#f27f65; --safe:#54d2bf; color-scheme:dark;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:400 16px/1.55 var(--f-body)}
+h1,h2,h3,p,ul,ol,dl,dd,figure{margin:0}
+ul,ol{padding:0;list-style:none}
+a{color:inherit;text-underline-offset:3px}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+sup{font-size:.7em;line-height:0}
+
+.wrap{max-width:1120px;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px 64px;display:flex;flex-direction:column;gap:56px}
+
+/* ----- header ----- */
+.top{display:flex;flex-direction:column;gap:14px;max-width:46rem}
+.kicker{font:500 12px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font:600 clamp(2rem,4.6vw,3.1rem)/1.04 var(--f-display);letter-spacing:-.01em;text-wrap:balance}
+.lede{font-size:1.06rem;color:var(--muted);max-width:42rem}
+
+/* ----- lab ----- */
+.lab{display:flex;flex-direction:column;gap:18px}
+.tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-bottom:1px solid var(--line)}
+.tab{appearance:none;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;padding:10px 12px 10px 0;text-align:left;color:var(--muted);cursor:pointer;display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:10px;align-items:baseline;font:inherit}
+.tab .n{font:500 12px/1 var(--f-mono);grid-row:span 2}
+.tab .t{font:600 1.25rem/1.1 var(--f-display)}
+.tab .s{font-size:.82rem;grid-column:2}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink)}
+.tab:hover{color:var(--ink)}
+
+.bench{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:20px 36px;align-items:start}
+.view{display:flex;flex-direction:column;gap:10px;min-width:0}
+.stage{position:relative;aspect-ratio:4/3;max-width:100%;background:var(--stage);border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y;cursor:grab}
+.stage canvas.grab{cursor:grabbing}
+.overlay{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.lbl{position:absolute;left:0;top:0;font:500 11px/1.2 var(--f-mono);color:var(--ink);white-space:nowrap;text-shadow:0 0 4px var(--stage),0 0 4px var(--stage),0 0 2px var(--stage)}
+.lbl.gold{color:var(--gold)} .lbl.safe{color:var(--safe)} .lbl.risk{color:var(--risk)} .lbl.muted{color:var(--muted)}
+.hint{position:absolute;left:10px;bottom:8px;font:400 11px/1 var(--f-mono);color:var(--muted);pointer-events:none}
+.nogl{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:var(--muted);font-size:.95rem}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.82rem;color:var(--muted)}
+.legend li{display:flex;align-items:center;gap:7px}
+.legend i{width:10px;height:10px;border-radius:50%;flex:none}
+
+.panel{display:flex;flex-direction:column;gap:14px;min-width:0}
+.panel h2{font:600 1.65rem/1.12 var(--f-display);text-wrap:balance}
+.panel p{max-width:34rem}
+.panel .note{font-size:.88rem;color:var(--muted)}
+.controls{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:end;padding-block:14px;border-block:1px solid var(--line)}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field.grow{flex:1 1 100%}
+.field>label,.field>.cap{font:500 11px/1.2 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;gap:12px}
+.field output{color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:0;text-transform:none}
+select{font:500 15px/1.2 var(--f-mono);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:8px 10px;min-width:5.5rem}
+input[type=range]{width:100%;accent-color:var(--ink);margin:0;height:22px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--surface)}
+.seg button{appearance:none;border:0;background:transparent;color:var(--muted);font:500 14px/1 var(--f-body);padding:10px 13px;cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.btn{appearance:none;font:500 14px/1 var(--f-body);padding:10px 14px;border:1px solid var(--ink);background:transparent;color:var(--ink);border-radius:4px;cursor:pointer}
+.btn:hover:not(:disabled){background:var(--ink);color:var(--bg)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.readout{display:flex;flex-direction:column;gap:8px;font:400 13.5px/1.5 var(--f-mono);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.readout b{font-weight:500;color:var(--gold)}
+.readout .ok{color:var(--safe)} .readout .bad{color:var(--risk)}
+.readout .big{font:600 1.15rem/1.25 var(--f-display)}
+
+/* ----- reference sections ----- */
+.ref{display:flex;flex-direction:column;gap:18px}
+.ref>h2{font:600 1.75rem/1.1 var(--f-display);text-wrap:balance}
+.ref>p{max-width:42rem}
+.ref .note{font-size:.9rem;color:var(--muted);max-width:42rem}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:680px;font-size:.93rem}
+th,td{text-align:left;vertical-align:top;padding:10px 16px 10px 0;border-top:1px solid var(--line)}
+thead th{font:500 11px/1.2 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-top:0}
+td:first-child{font-weight:600;white-space:nowrap}
+.verdict{font:500 12px/1 var(--f-mono);letter-spacing:.04em;text-transform:uppercase;padding:5px 8px;border:1px solid currentColor;border-radius:3px;white-space:nowrap;display:inline-block}
+.verdict.risk{color:var(--risk)} .verdict.safe{color:var(--safe)}
+
+.est{display:flex;flex-direction:column}
+.est-row{display:grid;grid-template-columns:13rem minmax(0,1fr);gap:4px 20px;padding-block:12px;border-top:1px solid var(--line);align-items:center}
+.est-row.axis{border-top:0;padding-block:0 4px}
+.est-who{font-size:.93rem}
+.est-who b{font:500 13px/1 var(--f-mono);display:block;color:var(--muted);margin-bottom:3px}
+.est-plot{min-width:0;display:flex;flex-direction:column;gap:6px}
+.track{position:relative;height:14px;margin-inline:8px;background:linear-gradient(var(--line),var(--line)) center/100% 1px no-repeat}
+.track i{position:absolute;top:50%;left:calc((var(--v) - 4) / 5 * 100%);width:12px;height:12px;border-radius:50%;background:var(--gold);transform:translate(-50%,-50%)}
+.ticks{position:relative;height:16px;margin-inline:8px;font:400 11px/1 var(--f-mono);color:var(--muted)}
+.ticks span{position:absolute;left:calc(var(--p) * 1%);transform:translateX(-50%);white-space:nowrap}
+.est-val{font:400 13px/1.4 var(--f-mono);font-variant-numeric:tabular-nums;color:var(--muted);padding-inline:8px}
+.est-val strong{color:var(--ink);font-weight:500}
+
+.std{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:0 32px}
+.std li{padding-block:12px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:3px}
+.std .name{font:600 1.15rem/1.2 var(--f-display)}
+.std .meta{font:400 12px/1.4 var(--f-mono);color:var(--muted)}
+.std .what{font-size:.92rem}
+
+.sizes{display:flex;flex-direction:column;gap:4px}
+.sizes h3{font:500 11px/1.2 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-top:12px}
+.size-row{display:grid;grid-template-columns:8.5rem minmax(0,1fr) 12.5rem;gap:4px 14px;align-items:center;padding-block:5px}
+.size-row .who{font-weight:600;font-size:.93rem}
+.size-row .bar{display:flex;height:14px;width:calc((var(--a) + var(--b)) / 7888 * 100%);min-width:3px}
+.size-row .bar i{display:block;flex:var(--a) 1 0;background:var(--muted);min-width:1px}
+.size-row .bar i+i{flex:var(--b) 1 0;background:var(--ink)}
+.size-row .num{font:400 12.5px/1.3 var(--f-mono);font-variant-numeric:tabular-nums;color:var(--muted);text-align:right}
+.size-row .num strong{color:var(--ink);font-weight:500}
+.key{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.82rem;color:var(--muted)}
+.key span{display:flex;align-items:center;gap:7px}
+.key i{width:14px;height:10px;display:block}
+
+.dates li{display:grid;grid-template-columns:5.5rem minmax(0,1fr);gap:8px 20px;padding-block:14px;border-top:1px solid var(--line)}
+.dates .yr{font:600 1.9rem/1 var(--f-display);font-variant-numeric:tabular-nums}
+.dates dl{display:grid;grid-template-columns:7rem minmax(0,1fr);gap:6px 14px;font-size:.93rem}
+.dates dt{font:500 12px/1.6 var(--f-mono);color:var(--muted)}
+
+.todo{counter-reset:t;display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:0 32px}
+.todo li{counter-increment:t;padding-block:12px;border-top:1px solid var(--line);display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;font-size:.95rem}
+.todo li::before{content:counter(t);font:500 12px/1.9 var(--f-mono);color:var(--muted)}
+
+.sources{font-size:.85rem;color:var(--muted);display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:18px}
+.sources ul{display:flex;flex-direction:column;gap:4px}
+
+@media (max-width:860px){
+  .bench{grid-template-columns:minmax(0,1fr)}
+  .stage{aspect-ratio:1/1}
+  .tab .s{display:none}
+  .tab{padding-right:6px}
+  .est-row{grid-template-columns:minmax(0,1fr)}
+  .est-row.axis .est-who{display:none}
+  .size-row{grid-template-columns:minmax(0,1fr) auto}
+  .size-row .bar{grid-column:1 / -1;grid-row:2}
+  .dates li{grid-template-columns:minmax(0,1fr)}
+  .dates dl{grid-template-columns:minmax(0,1fr);gap:0}
+  .dates dd{margin-bottom:8px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <p class="kicker">Post-quantum cryptography, in three models</p>
+  <h1>How a quantum computer breaks today's encryption, and what replaces it</h1>
+  <p class="lede">Almost every secure connection starts with RSA or elliptic-curve maths. A large, error-corrected quantum computer solves both. Post-quantum cryptography (PQC) swaps them for problems that quantum computers don't speed up. The models below show the break, why it matters before the machine exists, and the fix.</p>
+</header>
+
+<section class="lab" aria-label="Interactive models">
+  <div class="tabs" role="tablist" aria-label="Chapters">
+    <button class="tab" role="tab" id="tab-shor" aria-controls="panel-shor" aria-selected="true" data-ch="shor"><span class="n">1</span><span class="t">Break</span><span class="s">Shor's algorithm</span></button>
+    <button class="tab" role="tab" id="tab-harvest" aria-controls="panel-harvest" aria-selected="false" tabindex="-1" data-ch="harvest"><span class="n">2</span><span class="t">Harvest</span><span class="s">Record now, decrypt later</span></button>
+    <button class="tab" role="tab" id="tab-lattice" aria-controls="panel-lattice" aria-selected="false" tabindex="-1" data-ch="lattice"><span class="n">3</span><span class="t">Rebuild</span><span class="s">Lattices and noise</span></button>
+  </div>
+
+  <div class="bench">
+    <div class="view">
+      <div class="stage" id="stage">
+        <canvas id="gl" tabindex="0" aria-label="3D model of the current chapter. Drag, or use the arrow keys, to rotate it."></canvas>
+        <div class="overlay" id="overlay" aria-hidden="true"></div>
+        <p class="hint" id="hint">Drag to rotate</p>
+        <p class="nogl" id="nogl" hidden>This browser couldn't start WebGL, so the 3D model is unavailable. The controls and results beside it still work.</p>
+      </div>
+      <ul class="legend" id="legend">
+        <li><i style="background:var(--gold)"></i>Back at 1 (one full period)</li>
+        <li><i style="background:var(--ink)"></i>Steps computed</li>
+        <li><i style="background:var(--dim)"></i>Not reached yet</li>
+      </ul>
+    </div>
+
+    <!-- 1 ─ Shor -->
+    <div class="panel" role="tabpanel" id="panel-shor" aria-labelledby="tab-shor">
+      <h2>Shor's algorithm finds a rhythm, and the rhythm gives up the key</h2>
+      <p>RSA is safe as long as nobody can split a large number N into its two prime factors. Shor's algorithm avoids searching for them. Pick a base a, and the sequence a<sup>x</sup> mod N repeats with some period r. Once r is known, one gcd calculation produces the factors.</p>
+      <p>The model wraps each value around a ring and stacks the steps upward. Gold points mark each return to 1.</p>
+      <div class="controls">
+        <div class="field"><label for="shor-n">Number N</label><select id="shor-n"></select></div>
+        <div class="field"><label for="shor-a">Base a</label><select id="shor-a"></select></div>
+        <div class="field"><span class="cap">Computer</span>
+          <div class="seg" role="group" aria-label="Computer type">
+            <button type="button" id="shor-classical" aria-pressed="true">Classical</button>
+            <button type="button" id="shor-quantum" aria-pressed="false">Quantum</button>
+          </div>
+        </div>
+        <button type="button" class="btn" id="shor-measure" disabled>Measure</button>
+      </div>
+      <p id="shor-mode-text">A classical computer walks the helix one step at a time. For a 2048-bit key the period is a number about 600 digits long.</p>
+      <div class="readout" aria-live="polite">
+        <div id="shor-seq"></div>
+        <div id="shor-status"></div>
+        <div id="shor-meas"></div>
+        <div class="big" id="shor-factors"></div>
+      </div>
+      <p class="note">The same method breaks elliptic-curve keys, and needs a smaller machine to do it.</p>
+    </div>
+
+    <!-- 2 ─ Harvest -->
+    <div class="panel" role="tabpanel" id="panel-harvest" aria-labelledby="tab-harvest" hidden>
+      <h2>The attack starts years before the machine exists</h2>
+      <p>Encrypted traffic can be copied today and stored. When a machine that runs Shor's algorithm arrives, the archive opens. Whatever was recorded before you migrated, and still matters on that day, is exposed.</p>
+      <p>Each column is one year of recorded traffic. Michele Mosca's rule of thumb: if X + Y is greater than Z, you are already late.</p>
+      <div class="controls">
+        <div class="field grow"><label for="hv-x">X · years the data must stay secret <output id="hv-x-out" for="hv-x">10</output></label><input type="range" id="hv-x" min="1" max="30" step="1" value="10"></div>
+        <div class="field grow"><label for="hv-y">Y · years your migration takes <output id="hv-y-out" for="hv-y">6</output></label><input type="range" id="hv-y" min="1" max="15" step="1" value="6"></div>
+        <div class="field grow"><label for="hv-z">Z · years until the machine (nobody knows) <output id="hv-z-out" for="hv-z">9</output></label><input type="range" id="hv-z" min="2" max="24" step="1" value="9"></div>
+      </div>
+      <div class="readout" aria-live="polite">
+        <div id="hv-math"></div>
+        <div class="big" id="hv-verdict"></div>
+      </div>
+      <p class="note">Signatures are a different case. Forging one needs the machine to exist at that moment, so key exchange is being migrated first.</p>
+    </div>
+
+    <!-- 3 ─ Lattice -->
+    <div class="panel" role="tabpanel" id="panel-lattice" aria-labelledby="tab-lattice" hidden>
+      <h2>The fix hides the key in a noisy lattice</h2>
+      <p>The main replacements rest on a different problem. Given a point near a lattice, find the lattice point closest to it. There is no rhythm for Shor's method to find, and no known quantum algorithm does much better than a classical one.</p>
+      <p>Here the message is a lattice point and the sender adds noise to it. With the private basis (short, nearly square arrows) rounding snaps back to the message. With the public basis (long, skewed arrows over the same lattice) rounding lands on the wrong point. The wire cell shows the region each basis rounds to.</p>
+      <div class="controls">
+        <div class="field"><span class="cap">Decode with</span>
+          <div class="seg" role="group" aria-label="Basis">
+            <button type="button" id="lat-private" aria-pressed="true">Private basis</button>
+            <button type="button" id="lat-public" aria-pressed="false">Public basis</button>
+          </div>
+        </div>
+        <button type="button" class="btn" id="lat-new">New message</button>
+        <div class="field grow"><label for="lat-noise">Noise added by the sender <output id="lat-noise-out" for="lat-noise">0.40</output></label><input type="range" id="lat-noise" min="0.05" max="0.6" step="0.01" value="0.4"></div>
+      </div>
+      <div class="readout" aria-live="polite">
+        <div id="lat-private-out"></div>
+        <div id="lat-public-out"></div>
+        <div id="lat-rates"></div>
+      </div>
+      <p class="note">This is the intuition in 3 dimensions. ML-KEM-768 works with 768 coefficients and uses noisy linear equations (Module-LWE) instead of two bases, but the hard problem underneath is this one. Its noise is tuned so the key holder fails about once in 2<sup>164</sup> tries.</p>
+    </div>
+  </div>
+</section>
+
+<section class="ref">
+  <h2>What breaks and what holds</h2>
+  <p>The damage is confined to public-key cryptography, which means key exchange and signatures. Symmetric ciphers and hashes survive, because the best quantum attack on them (Grover's algorithm) only gives a square-root speedup that a longer key absorbs.</p>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Algorithm</th><th>Where you meet it</th><th>Best quantum attack</th><th>After the machine</th></tr></thead>
+      <tbody>
+        <tr><td>RSA</td><td>Certificates, code signing, email, older key exchange</td><td>Shor</td><td><span class="verdict risk">Broken</span></td></tr>
+        <tr><td>ECDH, ECDSA, Ed25519</td><td>Most TLS and SSH handshakes, passkeys, cryptocurrency</td><td>Shor, on a smaller machine than RSA needs</td><td><span class="verdict risk">Broken</span></td></tr>
+        <tr><td>Diffie–Hellman</td><td>VPNs, older TLS</td><td>Shor</td><td><span class="verdict risk">Broken</span></td></tr>
+        <tr><td>AES-256</td><td>Bulk encryption of data and traffic</td><td>Grover, leaving about 128 bits of strength</td><td><span class="verdict safe">Holds</span></td></tr>
+        <tr><td>AES-128</td><td>Bulk encryption of data and traffic</td><td>Grover, which parallelises poorly</td><td><span class="verdict safe">Holds</span> in practice; many policies ask for 256</td></tr>
+        <tr><td>SHA-2, SHA-3</td><td>Hashing, integrity, password storage</td><td>Small speedups only</td><td><span class="verdict safe">Holds</span></td></tr>
+        <tr><td>ML-KEM, ML-DSA, SLH-DSA</td><td>The replacements, rolling out now</td><td>None known that matters</td><td><span class="verdict safe">Built to hold</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="ref">
+  <h2>How big the machine has to be</h2>
+  <p>These are published designs for a machine that factors RSA-2048, counted in physical qubits. Each one is a paper estimate that assumes hardware nobody has built, and no machine today is close to running these circuits. The requirement has fallen by more than four orders of magnitude in 14 years, mostly through better algorithms and error-correcting codes.</p>
+  <div class="est" role="img" aria-label="Physical qubit estimates for factoring RSA-2048 on a log scale: about 1 billion in 2012, 20 million in 2019, under 1 million in 2025, under 100,000 in February 2026 and 22,593 in October 2026.">
+    <div class="est-row axis">
+      <div class="est-who"></div>
+      <div class="est-plot"><div class="ticks"><span style="--p:0">10k</span><span style="--p:20">100k</span><span style="--p:40">1M</span><span style="--p:60">10M</span><span style="--p:80">100M</span><span style="--p:100">1B</span></div></div>
+    </div>
+    <div class="est-row">
+      <div class="est-who"><b>2012</b>Fowler and colleagues</div>
+      <div class="est-plot"><div class="track"><i style="--v:9"></i></div><div class="est-val"><strong>up to ~1,000,000,000</strong> · first full surface-code design</div></div>
+    </div>
+    <div class="est-row">
+      <div class="est-who"><b>2019</b>Gidney and Ekerå</div>
+      <div class="est-plot"><div class="track"><i style="--v:7.301"></i></div><div class="est-val"><strong>20,000,000</strong> · about 8 hours</div></div>
+    </div>
+    <div class="est-row">
+      <div class="est-who"><b>May 2025</b>Gidney, Google Quantum AI</div>
+      <div class="est-plot"><div class="track"><i style="--v:6"></i></div><div class="est-val"><strong>under 1,000,000</strong> · under a week</div></div>
+    </div>
+    <div class="est-row">
+      <div class="est-who"><b>Feb 2026</b>Iceberg Quantum</div>
+      <div class="est-plot"><div class="track"><i style="--v:5"></i></div><div class="est-val"><strong>under 100,000</strong> · simulated; needs qubit connectivity not yet shown at scale</div></div>
+    </div>
+    <div class="est-row">
+      <div class="est-who"><b>Oct 2026</b>Alice &amp; Bob</div>
+      <div class="est-plot"><div class="track"><i style="--v:4.354"></i></div><div class="est-val"><strong>22,593 cat qubits</strong> · about 3 days; company preprint</div></div>
+    </div>
+  </div>
+  <p class="note">Log scale. Elliptic curves fall sooner: Google's March 2026 estimate for a 256-bit curve is under 500,000 physical qubits and minutes of runtime.</p>
+</section>
+
+<section class="ref">
+  <h2>The replacements</h2>
+  <p>NIST finalised the first three standards in August 2024. Two more are still being written. They split into key exchange (KEMs) and signatures, and they deliberately rest on more than one kind of maths in case one of them falls.</p>
+  <ul class="std">
+    <li><span class="name">ML-KEM</span><span class="meta">FIPS 203 · final · key exchange</span><span class="what">Lattice-based, from CRYSTALS-Kyber. NIST's recommended default is ML-KEM-768.</span></li>
+    <li><span class="name">ML-DSA</span><span class="meta">FIPS 204 · final · signatures</span><span class="what">Lattice-based, from CRYSTALS-Dilithium. The general-purpose signature.</span></li>
+    <li><span class="name">SLH-DSA</span><span class="meta">FIPS 205 · final · signatures</span><span class="what">Hash-based, from SPHINCS+. Relies only on hash functions, at the cost of large signatures.</span></li>
+    <li><span class="name">FN-DSA</span><span class="meta">Planned FIPS 206 · in development · signatures</span><span class="what">Lattice-based, from Falcon. Much smaller signatures, harder to implement safely.</span></li>
+    <li><span class="name">HQC</span><span class="meta">Selected March 2025 · in development · key exchange</span><span class="what">Code-based. A backup for ML-KEM that does not depend on lattices.</span></li>
+  </ul>
+
+  <p>The price is size. These bars show the bytes each scheme puts on the wire, drawn to one scale.</p>
+  <div class="sizes">
+    <div class="key"><span><i style="background:var(--muted)"></i>Public key</span><span><i style="background:var(--ink)"></i>Ciphertext or signature</span></div>
+    <h3>Key exchange</h3>
+    <div class="size-row" style="--a:32;--b:32"><span class="who">X25519</span><span class="bar"><i></i><i></i></span><span class="num">32 + 32 = <strong>64 B</strong></span></div>
+    <div class="size-row" style="--a:1184;--b:1088"><span class="who">ML-KEM-768</span><span class="bar"><i></i><i></i></span><span class="num">1,184 + 1,088 = <strong>2,272 B</strong></span></div>
+    <h3>Signatures</h3>
+    <div class="size-row" style="--a:32;--b:64"><span class="who">Ed25519</span><span class="bar"><i></i><i></i></span><span class="num">32 + 64 = <strong>96 B</strong></span></div>
+    <div class="size-row" style="--a:256;--b:256"><span class="who">RSA-2048</span><span class="bar"><i></i><i></i></span><span class="num">256 + 256 = <strong>512 B</strong></span></div>
+    <div class="size-row" style="--a:897;--b:666"><span class="who">FN-DSA-512</span><span class="bar"><i></i><i></i></span><span class="num">897 + 666 = <strong>1,563 B</strong></span></div>
+    <div class="size-row" style="--a:1952;--b:3309"><span class="who">ML-DSA-65</span><span class="bar"><i></i><i></i></span><span class="num">1,952 + 3,309 = <strong>5,261 B</strong></span></div>
+    <div class="size-row" style="--a:32;--b:7856"><span class="who">SLH-DSA-128s</span><span class="bar"><i></i><i></i></span><span class="num">32 + 7,856 = <strong>7,888 B</strong></span></div>
+  </div>
+  <p class="note">Most deployments today are hybrid: X25519 and ML-KEM-768 run together in one handshake, so an attacker has to break both.</p>
+</section>
+
+<section class="ref">
+  <h2>The deadlines already set</h2>
+  <p>Governments are not waiting for a date for the machine. NIST's transition plan became final on 27 October 2026 and was stricter than its draft: every key size of RSA and elliptic-curve cryptography is on the clock, where the draft covered only the weaker ones.</p>
+  <ol class="dates">
+    <li><span class="yr">2026</span>
+      <dl><dt>Australia</dt><dd>A refined transition plan in place by the end of the year (ASD).</dd>
+          <dt>EU</dt><dd>National transition plans written and pilots started for high- and medium-risk systems.</dd></dl></li>
+    <li><span class="yr">2028</span>
+      <dl><dt>UK</dt><dd>Cryptography inventoried and a migration plan drafted (NCSC).</dd>
+          <dt>Australia</dt><dd>Transition under way, starting with critical systems and data.</dd></dl></li>
+    <li><span class="yr">2030</span>
+      <dl><dt>US</dt><dd>NIST deprecates RSA, ECDSA, EdDSA, Diffie–Hellman and ECDH after 2030. Federal high-value systems need post-quantum key exchange by 31 December.</dd>
+          <dt>Australia</dt><dd>Transition finished. ASD's manual recommends ceasing traditional public-key cryptography.</dd>
+          <dt>EU</dt><dd>High-risk uses fully migrated.</dd></dl></li>
+    <li><span class="yr">2031</span>
+      <dl><dt>UK</dt><dd>Highest-priority migrations carried out.</dd>
+          <dt>US</dt><dd>Federal high-value systems need post-quantum signatures by 31 December.</dd></dl></li>
+    <li><span class="yr">2035</span>
+      <dl><dt>US</dt><dd>NIST disallows those algorithms outright.</dd>
+          <dt>UK</dt><dd>Migration complete across all systems, services and products.</dd>
+          <dt>EU</dt><dd>Medium- and low-risk uses migrated as far as feasible.</dd></dl></li>
+  </ol>
+</section>
+
+<section class="ref">
+  <h2>If you run systems</h2>
+  <ol class="todo">
+    <li>Find where RSA and elliptic curves are used. Certificates, VPNs, SSH, firmware signing and hard-coded libraries all count.</li>
+    <li>Sort data by how long it must stay secret. Anything with a long shelf life goes first, because it is already being recorded.</li>
+    <li>Turn on hybrid key exchange where your TLS and SSH stacks already support it. That closes the record-now gap today.</li>
+    <li>Budget for bigger keys and signatures. Handshakes, certificate chains and constrained devices feel it first.</li>
+    <li>Make algorithms swappable in configuration. The standards are still moving, and you will change them again.</li>
+  </ol>
+</section>
+
+<footer class="sources">
+  <p>Sources, checked November 2026. Qubit estimates are theoretical projections, and two of the 2026 figures come from company announcements.</p>
+  <ul>
+    <li><a href="https://postquantum.com/security-pqc/nist-ir-8547-final/" target="_blank" rel="noopener">NIST IR 8547 final: what changed from the draft</a> (PostQuantum.com)</li>
+    <li><a href="https://labs.cloudsecurityalliance.org/research/csa-research-note-nist-ir8547-pqc-transition-20261030-csa-st/" target="_blank" rel="noopener">NIST IR 8547 final and US federal deadlines</a> (Cloud Security Alliance)</li>
+    <li><a href="https://www.encryptionconsulting.com/decoding-nist-pqc-standards/" target="_blank" rel="noopener">Status of the NIST PQC standards</a> (Encryption Consulting)</li>
+    <li><a href="https://www.ncsc.gov.uk/news/pqc-migration-roadmap-unveiled" target="_blank" rel="noopener">UK PQC migration roadmap</a> (NCSC)</li>
+    <li><a href="https://www.govtechreview.com.au/content/gov-security/news/acsc-says-to-stay-ahead-of-the-quantum-threat-1479326493" target="_blank" rel="noopener">ASD milestones for 2026, 2028 and 2030</a> (GovTech Review)</li>
+    <li><a href="https://cyberinsider.com/eu-charts-roadmap-for-transition-to-quantum-resistant-cryptography-by-2035/" target="_blank" rel="noopener">EU coordinated roadmap</a> (CyberInsider)</li>
+    <li><a href="https://thequantuminsider.com/2026/03/31/q-day-just-got-closer-three-papers-in-three-months-are-rewriting-the-quantum-threat-timeline/" target="_blank" rel="noopener">Qubit estimates from 2012 to March 2026</a> (The Quantum Insider)</li>
+    <li><a href="https://thequantuminsider.com/2026/10/29/alice-bob-22593-qubits-break-rsa-2048/" target="_blank" rel="noopener">Alice &amp; Bob's October 2026 estimate</a> (The Quantum Insider)</li>
+  </ul>
+</footer>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+'use strict';
+const $=(s,r)=>(r||document).querySelector(s);
+const $$=(s,r)=>Array.from((r||document).querySelectorAll(s));
+const fmt=n=>Number(n).toLocaleString('en-US');
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const BASE=2026;
+
+/* ================= maths ================= */
+const gcd=(a,b)=>{while(b){const t=a%b;a=b;b=t}return a};
+const modpow=(b,e,m)=>{let r=1;b%=m;while(e>0){if(e&1)r=r*b%m;b=b*b%m;e>>=1}return r};
+const period=(a,N)=>{let v=a%N,r=1;while(v!==1&&r<=N){v=v*a%N;r++}return r};
+/* last continued-fraction convergent p/q of y/Q with q < limit */
+function convergent(y,Q,limit){
+  let a=y,b=Q,p0=0,q0=1,p1=1,q1=0,best=null;
+  while(b){
+    const t=Math.floor(a/b),p2=t*p1+p0,q2=t*q1+q0;
+    if(q2>=limit)break;
+    p0=p1;q0=q1;p1=p2;q1=q2;best=[p1,q1];
+    const nb=a-t*b;a=b;b=nb;
+  }
+  return best;
+}
+function mulberry(seed){return function(){let t=seed+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
+
+/* 3x3 helpers: a basis is three column vectors */
+const comb=(B,c)=>[0,1,2].map(d=>c[0]*B[0][d]+c[1]*B[1][d]+c[2]*B[2][d]);
+function solver(B){
+  const m=[[B[0][0],B[1][0],B[2][0]],[B[0][1],B[1][1],B[2][1]],[B[0][2],B[1][2],B[2][2]]];
+  const det=m[0][0]*(m[1][1]*m[2][2]-m[1][2]*m[2][1])-m[0][1]*(m[1][0]*m[2][2]-m[1][2]*m[2][0])+m[0][2]*(m[1][0]*m[2][1]-m[1][1]*m[2][0]);
+  const inv=[
+    [(m[1][1]*m[2][2]-m[1][2]*m[2][1])/det,(m[0][2]*m[2][1]-m[0][1]*m[2][2])/det,(m[0][1]*m[1][2]-m[0][2]*m[1][1])/det],
+    [(m[1][2]*m[2][0]-m[1][0]*m[2][2])/det,(m[0][0]*m[2][2]-m[0][2]*m[2][0])/det,(m[0][2]*m[1][0]-m[0][0]*m[1][2])/det],
+    [(m[1][0]*m[2][1]-m[1][1]*m[2][0])/det,(m[0][1]*m[2][0]-m[0][0]*m[2][1])/det,(m[0][0]*m[1][1]-m[0][1]*m[1][0])/det]];
+  return t=>inv.map(r=>r[0]*t[0]+r[1]*t[1]+r[2]*t[2]);
+}
+
+/* ================= state ================= */
+const QN=8192;                         /* size of the quantum register in the model */
+const SHOR_N=[15,21,35,77,143,221];
+const shor={N:15,a:7,mode:'classical',r:4,n:13,seq:[],P:null,Pmax:1,bars:[],step:0,acc:0,hold:0,grow:0,measured:null};
+const hvS={X:10,Y:6,Z:9,t:25,hold:2.5};
+const SP=0.9;
+const Gc=[[1,0.08,0],[0.06,1,0.1],[0.1,-0.06,1]].map(v=>v.map(c=>c*SP));   /* private basis: short, nearly square */
+const UNI=[[1,1,1],[1,2,2],[1,2,3]];                                      /* determinant 1, so same lattice */
+const Bc=UNI.map(r=>comb(Gc,r));                                          /* public basis: long, skewed */
+const solveG=solver(Gc),solveB=solver(Bc);
+const decode=(B,solve,t)=>comb(B,solve(t).map(Math.round));
+const LT={basis:'private',s:0.4,m:[1,1,0],u:[0.65,-0.5,0.45]};
+
+let active='shor';
+const stage=$('#stage'),canvas=$('#gl'),overlay=$('#overlay');
+
+/* ================= three.js ================= */
+let ok=false,renderer,camera,scene,light,dummy,v3,sphere;
+const C={},mats={},lmats={},groups={},labels=[];
+const sh={},hv={},lt={};
+const SH={R:1.45,H:4.4,Y0:-2.2,RQ:2.6,BAR:1.5,CAP:200};
+const HVC={N:25,DX:0.42,CUBE:0.3,GAP:0.06,STACK:3,Y0:-0.6};
+const hx=i=>(i-(HVC.N-1)/2)*HVC.DX;
+const view={
+  shor:{az:0.6,el:0.3,dist:10.2,ty:-0.3,auto:'spin',wide:false},
+  harvest:{az:0.2,az0:0.2,el:0.34,dist:13.2,ty:0.2,auto:'sway',wide:true},
+  lattice:{az:0.7,el:0.3,dist:12,ty:0,auto:'spin',wide:false}
+};
+
+function tokens(){
+  const cs=getComputedStyle(document.documentElement);
+  ['stage','ink','muted','line','dim','gold','risk','safe'].forEach(k=>{
+    const v=cs.getPropertyValue('--'+k).trim();
+    C[k]=new THREE.Color(v||'#888888');
+  });
+}
+function label(sceneKey,cls){
+  const el=document.createElement('div');
+  el.className='lbl'+(cls?' '+cls:'');el.hidden=true;overlay.appendChild(el);
+  const L={el,pos:new THREE.Vector3(),scene:sceneKey,show:true};labels.push(L);return L;
+}
+function dynLine(cap,mat,segments){
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(cap*3),3));
+  const l=segments?new THREE.LineSegments(geo,mat):new THREE.Line(geo,mat);
+  l.frustumCulled=false;return l;
+}
+function circle(rad,seg,mat){
+  const a=new Float32Array(seg*3);
+  for(let i=0;i<seg;i++){const t=i/seg*Math.PI*2;a[i*3]=rad*Math.cos(t);a[i*3+1]=0;a[i*3+2]=rad*Math.sin(t)}
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(a,3));
+  return new THREE.LineLoop(geo,mat);
+}
+
+function setup(){
+  renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true});
+  camera=new THREE.PerspectiveCamera(38,4/3,0.1,100);
+  scene=new THREE.Scene();
+  scene.add(new THREE.AmbientLight(0xffffff,0.68));
+  light=new THREE.DirectionalLight(0xffffff,0.5);scene.add(light);
+  dummy=new THREE.Object3D();v3=new THREE.Vector3();
+  sphere=new THREE.SphereGeometry(1,18,12);
+  tokens();
+  ['ink','muted','dim','gold','risk','safe'].forEach(k=>{
+    mats[k]=new THREE.MeshLambertMaterial({color:C[k].clone()});
+    lmats[k]=new THREE.LineBasicMaterial({color:C[k].clone()});
+  });
+  lmats.line=new THREE.LineBasicMaterial({color:C.line.clone()});
+  mats.inst=new THREE.MeshLambertMaterial({color:0xffffff});
+  mats.gateQ=new THREE.MeshBasicMaterial({color:C.gold.clone(),transparent:true,opacity:0.16,side:THREE.DoubleSide,depthWrite:false});
+  mats.gateM=new THREE.MeshBasicMaterial({color:C.safe.clone(),transparent:true,opacity:0.16,side:THREE.DoubleSide,depthWrite:false});
+  buildShor();buildHarvest();buildLattice();
+  ok=true;
+}
+
+function applyTheme(){
+  if(!ok)return;
+  tokens();
+  renderer.setClearColor(C.stage,1);
+  ['ink','muted','dim','gold','risk','safe'].forEach(k=>{mats[k].color.copy(C[k]);lmats[k].color.copy(C[k])});
+  lmats.line.color.copy(C.line);mats.gateQ.color.copy(C.gold);mats.gateM.color.copy(C.safe);
+  shorDraw();harvestDraw();latticeDraw();
+}
+
+/* ---------- scene 1: Shor ---------- */
+function buildShor(){
+  const g=groups.shor=new THREE.Group();scene.add(g);
+  sh.pts=new THREE.InstancedMesh(sphere,mats.inst,SH.CAP);sh.pts.frustumCulled=false;g.add(sh.pts);
+  sh.pathAll=dynLine(SH.CAP,lmats.dim);sh.pathLit=dynLine(SH.CAP,lmats.ink);g.add(sh.pathAll,sh.pathLit);
+  sh.rail=dynLine(2,lmats.gold);g.add(sh.rail);
+  const c1=circle(SH.R,96,lmats.line);c1.position.y=SH.Y0;
+  const c2=circle(SH.R,96,lmats.line);c2.position.y=SH.Y0+SH.H;g.add(c1,c2);
+  sh.rings=[0,1,2,3].map(()=>{const c=circle(SH.R+0.14,96,lmats.gold);g.add(c);return c});
+  sh.walker=new THREE.Mesh(sphere,mats.gold);sh.walker.scale.setScalar(0.13);g.add(sh.walker);
+  sh.q=new THREE.Group();g.add(sh.q);
+  const cq=circle(SH.RQ,128,lmats.line);cq.position.y=SH.Y0;sh.q.add(cq);
+  sh.bars=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),mats.gold,1024);sh.bars.frustumCulled=false;sh.q.add(sh.bars);
+  sh.mark=new THREE.Mesh(sphere,mats.ink);sh.mark.scale.setScalar(0.09);sh.q.add(sh.mark);
+  sh.lx=[0,1,2,3].map(()=>label('shor','gold'));
+  sh.lq=label('shor','gold');sh.lm=label('shor','');
+}
+function shPos(i,out){
+  const th=2*Math.PI*shor.seq[i]/shor.N,y=SH.Y0+SH.H*i/(shor.n-1);
+  return out.set(SH.R*Math.cos(th),y,SH.R*Math.sin(th));
+}
+function shorDraw(){
+  if(!ok)return;
+  const N=shor.N,r=shor.r,n=shor.n,quantum=shor.mode==='quantum';
+  const lit=quantum?n-1:Math.min(shor.step,n-1);
+  const pa=sh.pathAll.geometry.attributes.position,pl=sh.pathLit.geometry.attributes.position;
+  for(let i=0;i<n;i++){
+    shPos(i,v3);
+    dummy.position.copy(v3);dummy.rotation.set(0,0,0);dummy.scale.setScalar(i%r===0?0.095:0.06);dummy.updateMatrix();
+    sh.pts.setMatrixAt(i,dummy.matrix);
+    sh.pts.setColorAt(i,i<=lit?(i%r===0?C.gold:C.ink):C.dim);
+    pa.setXYZ(i,v3.x,v3.y,v3.z);pl.setXYZ(i,v3.x,v3.y,v3.z);
+  }
+  sh.pts.count=n;sh.pts.instanceMatrix.needsUpdate=true;sh.pts.instanceColor.needsUpdate=true;
+  pa.needsUpdate=true;pl.needsUpdate=true;
+  sh.pathAll.geometry.setDrawRange(0,n);sh.pathLit.geometry.setDrawRange(0,lit+1);
+  const th1=2*Math.PI/N,cx=Math.cos(th1),cz=Math.sin(th1);
+  const rp=sh.rail.geometry.attributes.position;
+  rp.setXYZ(0,SH.R*cx,SH.Y0,SH.R*cz);rp.setXYZ(1,SH.R*cx,SH.Y0+SH.H,SH.R*cz);rp.needsUpdate=true;
+  const periods=Math.round((n-1)/r);
+  for(let k=0;k<4;k++){
+    const y=SH.Y0+SH.H*(k*r)/(n-1),on=k<=periods;
+    sh.rings[k].visible=on;sh.rings[k].position.y=y;
+    sh.lx[k].show=on;
+    if(on){sh.lx[k].pos.set((SH.R+0.6)*cx,y,(SH.R+0.6)*cz);sh.lx[k].el.textContent='x = '+k*r}
+  }
+  sh.walker.visible=!quantum;if(!quantum)shPos(lit,sh.walker.position);
+  sh.q.visible=quantum;
+  sh.lq.show=quantum;sh.lq.pos.set(0,SH.Y0+SH.BAR+0.35,SH.RQ);sh.lq.el.textContent=r+(r===1?' peak':' peaks');
+  shorBars();
+}
+function shorBars(){
+  if(!ok)return;
+  const list=shor.bars,g=Math.max(shor.grow,0.001);
+  for(let i=0;i<list.length;i++){
+    const b=list[i],h=b.h*SH.BAR*g;
+    dummy.position.set(SH.RQ*Math.cos(b.th),SH.Y0+h/2,SH.RQ*Math.sin(b.th));
+    dummy.rotation.set(0,-b.th,0);dummy.scale.set(0.2,h,0.075);dummy.updateMatrix();
+    sh.bars.setMatrixAt(i,dummy.matrix);
+  }
+  dummy.rotation.set(0,0,0);
+  sh.bars.count=list.length;sh.bars.instanceMatrix.needsUpdate=true;
+  const m=shor.measured,on=m!==null&&shor.mode==='quantum';
+  sh.mark.visible=on;sh.lm.show=on;
+  if(on){
+    const th=2*Math.PI*m/QN,h=shor.P[m]/shor.Pmax*SH.BAR*g+0.14;
+    sh.mark.position.set(SH.RQ*Math.cos(th),SH.Y0+h,SH.RQ*Math.sin(th));
+    sh.lm.pos.copy(sh.mark.position);sh.lm.pos.y+=0.3;sh.lm.el.textContent='measured '+fmt(m);
+  }
+}
+
+/* ---------- scene 2: harvest ---------- */
+function gate(h,mat,lmat){
+  const grp=new THREE.Group(),b=HVC.Y0-0.2;
+  const p=new THREE.Mesh(new THREE.PlaneGeometry(1.6,h),mat);p.rotation.y=Math.PI/2;p.position.y=b+h/2;grp.add(p);
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array([0,b,-0.8, 0,b+h,-0.8, 0,b+h,0.8, 0,b,0.8]),3));
+  grp.add(new THREE.LineLoop(geo,lmat));grp.userData.top=b+h;return grp;
+}
+function buildHarvest(){
+  const g=groups.harvest=new THREE.Group();scene.add(g);
+  hv.cubes=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),mats.inst,HVC.N*HVC.STACK);hv.cubes.frustumCulled=false;g.add(hv.cubes);
+  const floor=dynLine(2,lmats.line),fp=floor.geometry.attributes.position;
+  fp.setXYZ(0,hx(0)-0.3,HVC.Y0-0.2,0);fp.setXYZ(1,hx(HVC.N-1)+0.3,HVC.Y0-0.2,0);g.add(floor);
+  hv.gateQ=gate(2.3,mats.gateQ,lmats.gold);hv.gateM=gate(1.8,mats.gateM,lmats.safe);g.add(hv.gateQ,hv.gateM);
+  [0,4,9,14,19,24].forEach(i=>{const L=label('harvest','muted');L.pos.set(hx(i),HVC.Y0-0.5,0.5);L.el.textContent=String(BASE+i)});
+  hv.lq=label('harvest','gold');hv.lm=label('harvest','safe');hv.lp=label('harvest','');
+}
+function harvestDraw(){
+  if(!ok)return;
+  const X=hvS.X,Y=hvS.Y,Z=hvS.Z,t=hvS.t;
+  for(let i=0;i<HVC.N;i++){
+    const rec=t>i,pqc=i>=Y,exposed=!pqc&&(i+X>=Z);
+    for(let k=0;k<HVC.STACK;k++){
+      let y=HVC.Y0+k*(HVC.CUBE+HVC.GAP)+HVC.CUBE/2,col;
+      if(!rec)col=C.dim;else if(pqc)col=C.safe;else if(t<Z)col=C.ink;else if(exposed){col=C.risk;y+=0.12}else col=C.muted;
+      dummy.position.set(hx(i),y,0);dummy.rotation.set(0,0,0);dummy.scale.setScalar(rec?HVC.CUBE:HVC.CUBE*0.4);dummy.updateMatrix();
+      hv.cubes.setMatrixAt(i*HVC.STACK+k,dummy.matrix);hv.cubes.setColorAt(i*HVC.STACK+k,col);
+    }
+  }
+  hv.cubes.instanceMatrix.needsUpdate=true;hv.cubes.instanceColor.needsUpdate=true;
+  hv.gateQ.position.x=hx(Z-0.5);hv.gateM.position.x=hx(Y-0.5);
+  hv.lq.pos.set(hx(Z-0.5),hv.gateQ.userData.top+0.22,0);hv.lq.el.textContent='machine arrives '+(BASE+Z);
+  hv.lm.pos.set(hx(Y-0.5),hv.gateM.userData.top+0.22,0);hv.lm.el.textContent='migrated '+(BASE+Y);
+  const playing=t<HVC.N;hv.lp.show=playing;
+  if(playing){const ti=Math.floor(t);hv.lp.pos.set(hx(ti),HVC.Y0+HVC.STACK*(HVC.CUBE+HVC.GAP)+0.22,0);hv.lp.el.textContent='recording '+(BASE+ti)}
+}
+
+/* ---------- scene 3: lattice ---------- */
+function buildLattice(){
+  const g=groups.lattice=new THREE.Group();scene.add(g);
+  const pts=new THREE.InstancedMesh(sphere,mats.dim,343);pts.frustumCulled=false;let idx=0;
+  for(let a=-3;a<=3;a++)for(let b=-3;b<=3;b++)for(let c=-3;c<=3;c++){
+    const p=comb(Gc,[a,b,c]);dummy.position.set(p[0],p[1],p[2]);dummy.rotation.set(0,0,0);dummy.scale.setScalar(0.032);dummy.updateMatrix();pts.setMatrixAt(idx++,dummy.matrix);
+  }
+  g.add(pts);
+  lt.arrows=[0,1,2].map(()=>{const a=new THREE.ArrowHelper(new THREE.Vector3(1,0,0),new THREE.Vector3(),1,0xffffff,0.3,0.16);g.add(a);return a});
+  lt.msg=new THREE.Mesh(sphere,mats.ink);lt.msg.scale.setScalar(0.12);
+  lt.tgt=new THREE.Mesh(sphere,mats.gold);lt.tgt.scale.setScalar(0.085);
+  lt.wrong=new THREE.Mesh(sphere,mats.risk);lt.wrong.scale.setScalar(0.12);
+  lt.err=dynLine(2,lmats.gold);
+  lt.cellSafe=dynLine(24,lmats.safe,true);lt.cellRisk=dynLine(24,lmats.risk,true);
+  g.add(lt.msg,lt.tgt,lt.wrong,lt.err,lt.cellSafe,lt.cellRisk);
+  lt.lmsg=label('lattice','');lt.ltgt=label('lattice','gold');lt.lwrong=label('lattice','risk');
+}
+function latticeDraw(){
+  if(!ok||!LT.t)return;
+  const priv=LT.basis==='private',B=priv?Gc:Bc,dec=priv?LT.decG:LT.decB,good=priv?LT.okG:LT.okB;
+  lt.arrows.forEach((a,k)=>{
+    v3.set(B[k][0],B[k][1],B[k][2]);const len=v3.length();
+    a.setDirection(v3.normalize());a.setLength(len,0.3,0.16);a.setColor(priv?C.safe:C.risk);
+  });
+  lt.msg.position.set(LT.truth[0],LT.truth[1],LT.truth[2]);
+  lt.tgt.position.set(LT.t[0],LT.t[1],LT.t[2]);
+  const ep=lt.err.geometry.attributes.position;
+  ep.setXYZ(0,LT.truth[0],LT.truth[1],LT.truth[2]);ep.setXYZ(1,LT.t[0],LT.t[1],LT.t[2]);ep.needsUpdate=true;
+  lt.wrong.visible=!good;lt.wrong.position.set(dec[0],dec[1],dec[2]);
+  const cell=good?lt.cellSafe:lt.cellRisk;lt.cellSafe.visible=good;lt.cellRisk.visible=!good;
+  const cp=cell.geometry.attributes.position;let n=0;
+  for(let k=0;k<3;k++){
+    const o1=(k+1)%3,o2=(k+2)%3;
+    for(let s1=-1;s1<=1;s1+=2)for(let s2=-1;s2<=1;s2+=2){
+      for(let e=-1;e<=1;e+=2){
+        cp.setXYZ(n++,
+          dec[0]+0.5*(e*B[k][0]+s1*B[o1][0]+s2*B[o2][0]),
+          dec[1]+0.5*(e*B[k][1]+s1*B[o1][1]+s2*B[o2][1]),
+          dec[2]+0.5*(e*B[k][2]+s1*B[o1][2]+s2*B[o2][2]));
+      }
+    }
+  }
+  cp.needsUpdate=true;
+  lt.lmsg.pos.set(LT.truth[0],LT.truth[1]+0.32,LT.truth[2]);lt.lmsg.el.textContent=good?'message, decoded correctly':'message';
+  lt.ltgt.pos.set(LT.t[0],LT.t[1]-0.28,LT.t[2]);lt.ltgt.el.textContent='received';
+  lt.lwrong.show=!good;lt.lwrong.pos.set(dec[0],dec[1]+(dec[1]>=LT.truth[1]?0.34:-0.34),dec[2]);lt.lwrong.el.textContent='decoded here';
+}
+
+/* ================= logic + readouts (work without WebGL) ================= */
+function shorCompute(){
+  const N=shor.N,a=shor.a,r=period(a,N);
+  shor.r=r;
+  const periods=r<=30?3:2,n=periods*r+1;shor.n=n;
+  const seq=new Array(n);let v=1;for(let i=0;i<n;i++){seq[i]=v;v=v*a%N}shor.seq=seq;
+  /* exact measurement distribution after the quantum Fourier transform */
+  const M=Math.ceil(QN/r),P=new Float64Array(QN);let max=0;
+  for(let y=0;y<QN;y++){
+    const den=Math.sin(Math.PI*r*y/QN);let amp;
+    if(Math.abs(den)<1e-9)amp=M*M;else{const num=Math.sin(Math.PI*M*r*y/QN);amp=(num/den)*(num/den)}
+    P[y]=amp/(QN*M);if(P[y]>max)max=P[y];
+  }
+  shor.P=P;shor.Pmax=max;
+  const bars=[];for(let y=0;y<QN&&bars.length<1000;y++){if(P[y]>0.02*max)bars.push({th:2*Math.PI*y/QN,h:P[y]/max})}
+  shor.bars=bars;shor.measured=null;shor.acc=0;shor.hold=0;
+  shor.step=reduced?r:0;shor.grow=reduced?1:0;
+  $('#shor-meas').textContent='';
+  shorReadout();shorDraw();
+}
+function shorReadout(){
+  const N=shor.N,a=shor.a,r=shor.r,seq=shor.seq;
+  const show=seq.slice(0,Math.min(seq.length,r+3<=14?r+3:12));
+  $('#shor-seq').innerHTML=a+'<sup>x</sup> mod '+N+' = '+show.map((v,i)=>i%r===0?'<b>'+v+'</b>':v).join(', ')+', …';
+  const out=$('#shor-factors');
+  if(r%2){out.innerHTML='Period '+r+' is odd, so this base gives no factors. Shor picks another base; at least half of them work.';out.className='big bad'}
+  else{
+    const h=modpow(a,r/2,N);
+    if(h===N-1){out.innerHTML=a+'<sup>'+(r/2)+'</sup> ≡ −1 (mod '+N+'), so this base gives no factors. Shor picks another base; at least half of them work.';out.className='big bad'}
+    else{
+      const p=gcd(h-1,N),q=gcd(h+1,N);
+      out.innerHTML='gcd('+a+'<sup>'+(r/2)+'</sup> ± 1, '+N+') → '+N+' = '+Math.min(p,q)+' × '+Math.max(p,q);out.className='big';
+    }
+  }
+  shorStatus();
+}
+function shorStatus(){
+  const el=$('#shor-status'),a=shor.a,N=shor.N,r=shor.r;
+  if(shor.mode==='classical'){
+    if(shor.step>=r)el.textContent='Back at 1 after '+r+' steps. The period is '+r+'.';
+    else el.textContent='Step '+shor.step+': '+a+'^'+shor.step+' mod '+N+' = '+shor.seq[shor.step];
+  }else{
+    el.textContent='All '+fmt(QN)+' register states at once. Interference leaves '+r+' peaks, so the period is '+r+'.';
+  }
+}
+function shorMeasure(){
+  const P=shor.P,u=Math.random();let y=0,acc=0;
+  for(;y<QN;y++){acc+=P[y];if(u<acc)break}
+  if(y>=QN)y=QN-1;
+  shor.measured=y;
+  const el=$('#shor-meas'),c=convergent(y,QN,shor.N);
+  if(y===0||!c){el.textContent='Measured 0. That peak carries no information, so the run is repeated.'}
+  else if(modpow(shor.a,c[1],shor.N)===1){el.innerHTML='Measured '+fmt(y)+' of '+fmt(QN)+' ≈ '+c[0]+'/'+c[1]+'. The denominator is the period: <span class="ok">'+c[1]+'</span>.'}
+  else{el.innerHTML='Measured '+fmt(y)+' of '+fmt(QN)+' ≈ '+c[0]+'/'+c[1]+'. <span class="bad">'+c[1]+' fails the check</span> ('+shor.a+'^'+c[1]+' mod '+shor.N+' ≠ 1), usually because this peak\'s index shares a factor with the period. Measure again.'}
+  shorBars();
+}
+function shorTick(dt){
+  if(reduced)return;
+  if(shor.mode==='classical'){
+    const r=shor.r;
+    if(shor.step<r){
+      shor.acc+=dt;const every=clamp(3/r,0.07,0.45);let moved=false;
+      while(shor.acc>every&&shor.step<r){shor.acc-=every;shor.step++;moved=true}
+      if(moved){shorDraw();shorStatus()}
+    }else{shor.hold+=dt;if(shor.hold>2.4){shor.hold=0;shor.acc=0;shor.step=0;shorDraw();shorStatus()}}
+  }else if(shor.grow<1){shor.grow=Math.min(1,shor.grow+dt/0.9);shorBars()}
+}
+
+function harvestCompute(){
+  const X=hvS.X,Y=hvS.Y,Z=hvS.Z;
+  $('#hv-x-out').textContent=X;$('#hv-y-out').textContent=Y;$('#hv-z-out').textContent=Z;
+  let first=-1,last=-1;
+  for(let i=0;i<Y;i++){if(i+X>=Z){if(first<0)first=i;last=i}}
+  const late=X+Y>Z;
+  $('#hv-math').innerHTML='X + Y = '+X+' + '+Y+' = '+(X+Y)+' '+(late?'&gt;':'≤')+' Z = '+Z+'. Machine arrives '+(BASE+Z)+', migration ends '+(BASE+Y)+'.';
+  const v=$('#hv-verdict');
+  if(late){
+    const n=last-first+1,span=n===1?String(BASE+first):(BASE+first)+' to '+(BASE+last);
+    v.textContent=n+(n===1?' year':' years')+' of recorded traffic ('+span+') can be read while it still matters.';v.className='big bad';
+  }else{v.textContent='Nothing recorded is still sensitive when the machine arrives, if that estimate for Z holds.';v.className='big ok'}
+  harvestDraw();
+}
+function harvestTick(dt){
+  if(reduced)return;
+  if(hvS.hold>0){hvS.hold-=dt;if(hvS.hold<=0){hvS.hold=0;hvS.t=0}}
+  else{hvS.t+=dt*2.4;if(hvS.t>=HVC.N){hvS.t=HVC.N;hvS.hold=2.6}}
+  harvestDraw();
+}
+
+function latticeCompute(){
+  const m=LT.m,u=LT.u,s=LT.s;
+  LT.truth=comb(Gc,m);LT.t=comb(Gc,[m[0]+s*u[0],m[1]+s*u[1],m[2]+s*u[2]]);
+  LT.decG=decode(Gc,solveG,LT.t);LT.decB=decode(Bc,solveB,LT.t);
+  const off=d=>solveG([d[0]-LT.truth[0],d[1]-LT.truth[1],d[2]-LT.truth[2]]).map(x=>Math.round(x));
+  const oG=off(LT.decG),oB=off(LT.decB);
+  LT.okG=oG.every(x=>x===0);LT.okB=oB.every(x=>x===0);
+  const vec=o=>'('+o.map(x=>String(x).replace('-','−')).join(', ')+')';
+  const line=(name,good,o)=>good?name+': <span class="ok">rounds back to the message.</span>':name+': <span class="bad">rounds to the wrong point</span>, off by '+vec(o)+' lattice steps.';
+  $('#lat-private-out').innerHTML=line('Private basis',LT.okG,oG);
+  $('#lat-public-out').innerHTML=line('Public basis',LT.okB,oB);
+  $('#lat-noise-out').textContent=s.toFixed(2);
+  latticeDraw();
+}
+function latticeRates(){
+  const rnd=mulberry(20261111),T=3000,s=LT.s;let g=0,b=0;
+  const zero=d=>Math.abs(d[0])+Math.abs(d[1])+Math.abs(d[2])<1e-6;
+  for(let i=0;i<T;i++){
+    const e=comb(Gc,[s*(rnd()*2-1),s*(rnd()*2-1),s*(rnd()*2-1)]);
+    if(zero(decode(Gc,solveG,e)))g++;if(zero(decode(Bc,solveB,e)))b++;
+  }
+  LT.rateG=g/T;LT.rateB=b/T;
+  $('#lat-rates').textContent='Over '+fmt(T)+' random messages at this noise: private basis '+Math.round(100*g/T)+'% correct, public basis '+Math.round(100*b/T)+'%.';
+}
+
+/* ================= chapters + controls ================= */
+const LEGENDS={
+  shor:[['gold','Back at 1 (one full period)'],['ink','Steps computed'],['dim','Not reached yet']],
+  shorQ:[['gold','Peaks: where a measurement can land'],['ink','Every step, held at once']],
+  harvest:[['ink','Recorded, still locked'],['risk','Readable while it still matters'],['muted','Readable, but stale by then'],['safe','Protected by PQC']],
+  lattice:[['dim','Lattice points'],['gold','Received point (message + noise)'],['safe','Private basis'],['risk','Public basis']]
+};
+function setLegend(){
+  const key=active==='shor'&&shor.mode==='quantum'?'shorQ':active;
+  $('#legend').innerHTML=LEGENDS[key].map(l=>'<li><i style="background:var(--'+l[0]+')"></i>'+l[1]+'</li>').join('');
+}
+function setChapter(key){
+  active=key;
+  $$('.tab').forEach(t=>{const on=t.dataset.ch===key;t.setAttribute('aria-selected',on?'true':'false');t.tabIndex=on?0:-1});
+  $$('.panel').forEach(p=>{p.hidden=p.id!=='panel-'+key});
+  if(ok)Object.keys(groups).forEach(k=>{groups[k].visible=k===key});
+  if(key==='harvest'){hvS.t=HVC.N;hvS.hold=reduced?0:2.2;harvestDraw()}
+  if(key==='shor'&&!reduced){shor.step=0;shor.acc=0;shor.hold=0;if(shor.mode==='quantum')shor.grow=0;shorDraw();shorStatus()}
+  setLegend();
+}
+$$('.tab').forEach((t,i,all)=>{
+  t.addEventListener('click',()=>setChapter(t.dataset.ch));
+  t.addEventListener('keydown',e=>{
+    if(e.key!=='ArrowRight'&&e.key!=='ArrowLeft')return;
+    const j=(i+(e.key==='ArrowRight'?1:all.length-1))%all.length;all[j].focus();setChapter(all[j].dataset.ch);e.preventDefault();
+  });
+});
+
+function fillBases(){
+  const N=shor.N,sel=$('#shor-a'),opts=[];
+  for(let a=2;a<=N-2&&opts.length<16;a++)if(gcd(a,N)===1)opts.push(a);
+  sel.innerHTML=opts.map(a=>'<option value="'+a+'">'+a+'</option>').join('');
+  shor.a=N===15?7:opts[0];sel.value=String(shor.a);
+}
+$('#shor-n').innerHTML=SHOR_N.map(n=>'<option value="'+n+'">'+n+'</option>').join('');
+$('#shor-n').addEventListener('change',e=>{shor.N=+e.target.value;fillBases();shorCompute()});
+$('#shor-a').addEventListener('change',e=>{shor.a=+e.target.value;shorCompute()});
+function setShorMode(mode){
+  shor.mode=mode;
+  $('#shor-classical').setAttribute('aria-pressed',mode==='classical'?'true':'false');
+  $('#shor-quantum').setAttribute('aria-pressed',mode==='quantum'?'true':'false');
+  $('#shor-measure').disabled=mode!=='quantum';
+  $('#shor-mode-text').textContent=mode==='classical'
+    ?'A classical computer walks the helix one step at a time. For a 2048-bit key the period is a number about 600 digits long.'
+    :'A quantum register holds every x in superposition. A quantum Fourier transform makes the wrong answers cancel and leaves r evenly spaced peaks. A measurement lands on one of them, and a fraction calculation recovers r.';
+  shor.measured=null;$('#shor-meas').textContent='';
+  shor.step=reduced?shor.r:0;shor.acc=0;shor.hold=0;shor.grow=reduced?1:0;
+  shorStatus();shorDraw();setLegend();
+}
+$('#shor-classical').addEventListener('click',()=>setShorMode('classical'));
+$('#shor-quantum').addEventListener('click',()=>setShorMode('quantum'));
+$('#shor-measure').addEventListener('click',shorMeasure);
+
+['x','y','z'].forEach(k=>{
+  $('#hv-'+k).addEventListener('input',e=>{
+    hvS[k.toUpperCase()]=+e.target.value;hvS.t=HVC.N;hvS.hold=reduced?0:3;harvestCompute();
+  });
+});
+
+function setBasis(b){
+  LT.basis=b;
+  $('#lat-private').setAttribute('aria-pressed',b==='private'?'true':'false');
+  $('#lat-public').setAttribute('aria-pressed',b==='public'?'true':'false');
+  latticeDraw();
+}
+$('#lat-private').addEventListener('click',()=>setBasis('private'));
+$('#lat-public').addEventListener('click',()=>setBasis('public'));
+$('#lat-noise').addEventListener('input',e=>{LT.s=+e.target.value;latticeCompute();latticeRates()});
+$('#lat-new').addEventListener('click',()=>{
+  const ri=()=>Math.floor(Math.random()*3)-1,ru=()=>Math.random()*2-1;
+  LT.m=[ri(),ri(),ri()];LT.u=[ru(),ru(),ru()];latticeCompute();
+});
+
+/* ================= camera, loop ================= */
+let drag=null,onscreen=true,last=0,clock=0;
+canvas.addEventListener('pointerdown',e=>{
+  drag={x:e.clientX,y:e.clientY};view[active].auto=null;canvas.classList.add('grab');
+  try{canvas.setPointerCapture(e.pointerId)}catch(err){}
+});
+canvas.addEventListener('pointermove',e=>{
+  if(!drag)return;const v=view[active];
+  v.az-=(e.clientX-drag.x)*0.008;v.el=clamp(v.el+(e.clientY-drag.y)*0.006,-0.15,1.25);
+  drag.x=e.clientX;drag.y=e.clientY;
+});
+['pointerup','pointercancel','lostpointercapture'].forEach(t=>canvas.addEventListener(t,()=>{drag=null;canvas.classList.remove('grab')}));
+canvas.addEventListener('keydown',e=>{
+  const v=view[active];let hit=true;
+  if(e.key==='ArrowLeft')v.az-=0.12;else if(e.key==='ArrowRight')v.az+=0.12;
+  else if(e.key==='ArrowUp')v.el=clamp(v.el+0.08,-0.15,1.25);else if(e.key==='ArrowDown')v.el=clamp(v.el-0.08,-0.15,1.25);else hit=false;
+  if(hit){v.auto=null;e.preventDefault()}
+});
+
+function resize(){
+  if(!ok)return;const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));renderer.setSize(w,h,false);
+  camera.aspect=w/h;camera.updateProjectionMatrix();
+  updateCamera(0);renderer.render(scene,camera);updateLabels();   /* setSize clears the canvas, so redraw at once */
+}
+function updateCamera(dt){
+  const v=view[active];
+  if(!drag&&!reduced){
+    if(v.auto==='spin')v.az+=dt*0.11;
+    else if(v.auto==='sway')v.az=v.az0+0.2*Math.sin(clock*0.32);
+  }
+  const d=v.dist*Math.max(1,(v.wide?1.34:1.02)/camera.aspect);
+  camera.position.set(d*Math.cos(v.el)*Math.sin(v.az),v.ty+d*Math.sin(v.el),d*Math.cos(v.el)*Math.cos(v.az));
+  camera.lookAt(0,v.ty,0);
+  light.position.copy(camera.position);light.position.y+=4;
+}
+function updateLabels(){
+  const w=stage.clientWidth,h=stage.clientHeight;
+  for(let i=0;i<labels.length;i++){
+    const L=labels[i];
+    if(L.scene!==active||!L.show){if(!L.el.hidden)L.el.hidden=true;continue}
+    v3.copy(L.pos).project(camera);
+    if(v3.z>1||v3.z<-1){L.el.hidden=true;continue}
+    L.el.hidden=false;
+    L.el.style.transform='translate(-50%,-50%) translate('+((v3.x*0.5+0.5)*w).toFixed(1)+'px,'+((-v3.y*0.5+0.5)*h).toFixed(1)+'px)';
+  }
+}
+function frame(now){
+  requestAnimationFrame(frame);
+  const dt=Math.min(0.05,(now-last)/1000||0);last=now;
+  if(!onscreen)return;
+  clock+=dt;
+  if(active==='shor')shorTick(dt);else if(active==='harvest')harvestTick(dt);
+  updateCamera(dt);renderer.render(scene,camera);updateLabels();
+}
+
+/* ================= boot ================= */
+try{
+  if(!window.THREE)throw new Error('three.js did not load');
+  setup();
+}catch(err){
+  ok=false;$('#nogl').hidden=false;$('#hint').hidden=true;canvas.hidden=true;
+}
+fillBases();
+shorCompute();harvestCompute();latticeCompute();latticeRates();
+setChapter('shor');
+if(ok){
+  applyTheme();resize();
+  if(window.ResizeObserver)new ResizeObserver(resize).observe(stage);else window.addEventListener('resize',resize);
+  if(window.IntersectionObserver)new IntersectionObserver(es=>{onscreen=es[0].isIntersecting}).observe(stage);
+  const mq=window.matchMedia('(prefers-color-scheme: dark)');
+  if(mq.addEventListener)mq.addEventListener('change',applyTheme);
+  new MutationObserver(applyTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+  requestAnimationFrame(frame);
+}
+})();
+</script>
+
+</body></html>
